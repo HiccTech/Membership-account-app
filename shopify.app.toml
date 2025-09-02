@@ -1,0 +1,32 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "c0e63a7fa647de95bf0b067c441ed20d"
+name = "membership-account"
+application_url = "https://murray-venice-reaction-device.trycloudflare.com"
+embedded = true
+handle = "membership-account"
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = ["https://murray-venice-reaction-device.trycloudflare.com/auth/callback", "https://murray-venice-reaction-device.trycloudflare.com/auth/shopify/callback", "https://murray-venice-reaction-device.trycloudflare.com/api/auth/callback"]
+
+[pos]
+embedded = false
