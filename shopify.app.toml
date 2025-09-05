@@ -2,12 +2,11 @@
 
 client_id = "c0e63a7fa647de95bf0b067c441ed20d"
 name = "membership-account"
-application_url = "https://guns-adventure-factors-actor.trycloudflare.com"
+application_url = "https://supplement-winner-milk-bold.trycloudflare.com"
 embedded = true
 handle = "membership-account"
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
 
 [webhooks]
@@ -26,7 +25,7 @@ api_version = "2025-07"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://guns-adventure-factors-actor.trycloudflare.com/auth/callback", "https://guns-adventure-factors-actor.trycloudflare.com/auth/shopify/callback", "https://guns-adventure-factors-actor.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://supplement-winner-milk-bold.trycloudflare.com/auth/callback", "https://supplement-winner-milk-bold.trycloudflare.com/auth/shopify/callback", "https://supplement-winner-milk-bold.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

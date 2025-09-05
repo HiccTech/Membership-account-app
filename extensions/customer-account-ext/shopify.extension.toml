@@ -8,6 +8,9 @@ api_version = "2025-07"
 [[extensions]]
 name = "customer-account-ext"
 handle = "customer-account-ext"
+
+uid = "0ef19a6f-bb02-bcce-6da8-7bc7c868e6e5ac25b313"
+
 type = "ui_extension"
 
 
@@ -27,4 +30,4 @@ api_access = true
 # Gives your extension access to make external network calls, using the
 # JavaScript `fetch()` API. Learn more:
 # https://shopify.dev/docs/api/customer-account-ui-extensions/unstable/configuration#network-access
-# network_access = true
+network_access = true
