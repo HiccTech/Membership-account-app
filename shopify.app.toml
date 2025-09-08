@@ -22,7 +22,7 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "write_products, customer_read_customers"
 
 [auth]
 redirect_urls = ["https://supplement-winner-milk-bold.trycloudflare.com/auth/callback", "https://supplement-winner-milk-bold.trycloudflare.com/auth/shopify/callback", "https://supplement-winner-milk-bold.trycloudflare.com/api/auth/callback"]
