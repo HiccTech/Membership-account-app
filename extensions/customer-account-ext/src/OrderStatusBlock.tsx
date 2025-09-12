@@ -73,6 +73,21 @@ function AccountPage() {
   const [petsError, setPetsError] = useState<string | null>(null);
   const [privilegesRefreshTrigger, setPrivilegesRefreshTrigger] = useState<number>(0);
 
+  // 打印 sessionToken 信息
+  useEffect(() => {
+    const logSessionToken = async () => {
+      try {
+        const token = await sessionToken.get();
+        console.log("AccountPage - sessionToken:", token);
+        console.log("AccountPage - sessionToken type:", typeof token);
+        console.log("AccountPage - sessionToken length:", token ? token.length : 0);
+      } catch (error) {
+        console.error("AccountPage - Error getting sessionToken:", error);
+      }
+    };
+    logSessionToken();
+  }, [sessionToken]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -407,6 +422,7 @@ function MyPetsModule(props: {
 }) {
   const modalId = "create-pet-modal";
   const { sessionToken, ui } = useApi();
+  const navigation = useNavigation();
   const {
     pets,
     petsLoading,
@@ -810,6 +826,8 @@ function MyPetsModule(props: {
                       setCreatedDraft(null);
                     }
                     ui.overlay.close(modalId);
+                    // 跳转到指定页面
+                    navigation.navigate("https://shopify.com/96773669045/account/pages/dev-48530af7-c58b-874b-dc00-43cae364b5d5ee9caff9");
                   }}
                 >
                   Use Now
@@ -2087,6 +2105,70 @@ function MembershipTiers(props: {
   const { hasPets, onPetCreated } = props;
   const { sessionToken, ui } = useApi();
   const navigation = useNavigation();
+  
+  // 角标数据状态
+  const [topupCounts, setTopupCounts] = useState<{ count1: number; count2: number } | null>(null);
+
+  // 获取角标数据
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const token = await sessionToken.get();
+        if (!token) throw new Error("Failed to obtain sessionToken");
+        
+        const response = await fetch(`${API_BASE}/storefront/topupCount`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "ngrok-skip-browser-warning": "1111",
+          },
+        });
+
+        const text = await response.text();
+        let json: unknown = null;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          throw new Error("The response is not valid JSON");
+        }
+
+        if (!response.ok) {
+          const maybe = (json as { message?: unknown })?.message;
+          const message =
+            typeof maybe === "string" ? maybe : `HTTP ${response.status}`;
+          throw new Error(message);
+        }
+
+        const code = (json as { code?: unknown })?.code;
+        if (typeof code !== "number")
+          throw new Error("Invalid response format");
+        if (code !== 0) {
+          const maybe = (json as { message?: unknown })?.message;
+          const message = typeof maybe === "string" ? maybe : "Interface Error";
+          throw new Error(message);
+        }
+
+        const data = (json as { data?: unknown })?.data as unknown;
+        const counts = data as { count1?: unknown; count2?: unknown };
+        
+        if (alive) {
+          setTopupCounts({
+            count1: typeof counts.count1 === "number" ? counts.count1 : 0,
+            count2: typeof counts.count2 === "number" ? counts.count2 : 0,
+          });
+        }
+      } catch (e) {
+        if (alive) {
+          // 静默处理错误，不显示角标
+          setTopupCounts(null);
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [sessionToken]);
 
   // Join Now 创建表单状态
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -2604,6 +2686,8 @@ function MembershipTiers(props: {
                       setCreatedDraft(null);
                     }
                     ui.overlay.close(modalId);
+                    // 跳转到指定页面
+                    navigation.navigate("https://shopify.com/96773669045/account/pages/dev-48530af7-c58b-874b-dc00-43cae364b5d5ee9caff9");
                   }}
                 >
                   Use Now
@@ -2747,21 +2831,22 @@ function MembershipTiers(props: {
                           </View>
                         </BlockStack>
                         {/* 角标 - 右上角定位 */}
-                        <View
-                          padding="tight"
-                          background="subdued"
-                          border="base"
-                          borderRadius="base"
-                          display="none"
-                        >
-                          <Text
-                            size="small"
-                            emphasis="bold"
-                            appearance="accent"
+                        {topupCounts && topupCounts.count1 > 1 && (
+                          <View
+                            padding="tight"
+                            background="subdued"
+                            border="base"
+                            borderRadius="base"
                           >
-                            ×2
-                          </Text>
-                        </View>
+                            <Text
+                              size="small"
+                              emphasis="bold"
+                              appearance="accent"
+                            >
+                              ×{topupCounts.count1}
+                            </Text>
+                          </View>
+                        )}
                       </Grid>
                     </View>
                     <Divider />
@@ -2833,17 +2918,36 @@ function MembershipTiers(props: {
                 <Grid border="base" borderRadius="base">
                   <Grid rows={["auto", "auto", "fill"]}>
                     <View padding="base">
-                      <BlockStack spacing="loose" inlineAlignment="center">
-                        <View padding="tight">
-                          <Text
-                            size="large"
-                            emphasis="bold"
-                            appearance="accent"
+                      <Grid columns={["fill", "auto"]} rows={["auto"]}>
+                        <BlockStack spacing="loose" inlineAlignment="center">
+                          <View padding="tight">
+                            <Text
+                              size="large"
+                              emphasis="bold"
+                              appearance="accent"
+                            >
+                              Prive
+                            </Text>
+                          </View>
+                        </BlockStack>
+                        {/* 角标 - 右上角定位 */}
+                        {topupCounts && topupCounts.count2 > 1 && (
+                          <View
+                            padding="tight"
+                            background="subdued"
+                            border="base"
+                            borderRadius="base"
                           >
-                            Prive
-                          </Text>
-                        </View>
-                      </BlockStack>
+                            <Text
+                              size="small"
+                              emphasis="bold"
+                              appearance="accent"
+                            >
+                              ×{topupCounts.count2}
+                            </Text>
+                          </View>
+                        )}
+                      </Grid>
                     </View>
                     <Divider />
                     <Grid rows={"fill"} padding="base">
