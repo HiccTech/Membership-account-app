@@ -195,8 +195,10 @@ function AccountPage() {
       next.push(pet);
       return next;
     });
-    // 宠物创建成功后，触发特权模块重新加载
-    setPrivilegesRefreshTrigger(prev => prev + 1);
+    // 宠物创建成功后，延迟触发特权模块重新加载（等待后台数据处理完成）
+    setTimeout(() => {
+      setPrivilegesRefreshTrigger(prev => prev + 1);
+    }, 1500); // 延迟1秒刷新，给后台处理时间
   };
   const handlePetDeleted = (id: string) => {
     setPets((prev) =>
@@ -513,6 +515,13 @@ function MyPetsModule(props: {
       size="max"
       padding
       onOpen={() => setModalVariant("form")}
+      onClose={() => {
+        // 模态框关闭时，如果有未处理的首份档案数据，则更新页面
+        if (createdDraft) {
+          onPetCreated(createdDraft);
+          setCreatedDraft(null);
+        }
+      }}
     >
       <BlockStack spacing="loose">
         {modalVariant === "form" ? (
@@ -822,12 +831,7 @@ function MyPetsModule(props: {
                 <Button
                   kind="primary"
                   onPress={() => {
-                    if (createdDraft) {
-                      onPetCreated(createdDraft);
-                      setCreatedDraft(null);
-                    }
-                    ui.overlay.close(modalId);
-                    // 跳转到指定页面
+                    // 直接跳转，不更新页面数据（因为要离开当前页面）
                     navigation.navigate("https://shopify.com/96773669045/account/pages/dev-48530af7-c58b-874b-dc00-43cae364b5d5ee9caff9");
                   }}
                 >
@@ -2189,7 +2193,7 @@ function MembershipTiers(props: {
   onPetCreated: (pet: Pet) => void;
 }) {
   const { hasPets, onPetCreated } = props;
-  const { sessionToken, ui } = useApi();
+  const { sessionToken } = useApi();
   const navigation = useNavigation();
   
   // 角标数据状态
@@ -2500,6 +2504,13 @@ function MembershipTiers(props: {
       size="max"
       padding
       onOpen={() => setModalVariant("form")}
+      onClose={() => {
+        // 模态框关闭时，如果有未处理的首份档案数据，则更新页面
+        if (createdDraft) {
+          onPetCreated(createdDraft);
+          setCreatedDraft(null);
+        }
+      }}
     >
       <BlockStack spacing="loose">
         {modalVariant === "form" ? (
@@ -2808,12 +2819,7 @@ function MembershipTiers(props: {
                 <Button
                   kind="primary"
                   onPress={() => {
-                    if (createdDraft) {
-                      onPetCreated(createdDraft);
-                      setCreatedDraft(null);
-                    }
-                    ui.overlay.close(modalId);
-                    // 跳转到指定页面
+                    // 直接跳转，不更新页面数据（因为要离开当前页面）
                     navigation.navigate("https://shopify.com/96773669045/account/pages/dev-48530af7-c58b-874b-dc00-43cae364b5d5ee9caff9");
                   }}
                 >
