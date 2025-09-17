@@ -31,6 +31,7 @@ import {
   useNavigation,
 } from "@shopify/ui-extensions-react/customer-account";
 import { useEffect, useState } from "react";
+import { v4 as uuidv4 } from 'uuid';
 
 export default reactExtension("customer-account.page.render", () => (
   <AccountPage />
@@ -863,56 +864,98 @@ function MyPetsModule(props: {
     return undefined;
   }
 
+  // 头像上传函数 - 使用OSS表单上传 (MyPetsModule-Create)
   async function uploadAvatar(file: File) {
     try {
       setAvatarUploadLoading(true);
       setAvatarUploadError(null);
       const token = await sessionToken.get();
       if (!token) throw new Error("Failed to obtain sessionToken");
-      const form = new FormData();
-      form.append("image", file);
-      const resp = await fetch(`${API_BASE}/storefront/uploadPetAvatar`, {
-        method: "POST",
+
+      // 第一步：获取OSS上传签名
+      const signatureResp = await fetch(`${API_BASE}/storefront/getPostSignatureForOssUpload`, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "1111",
         },
-        body: form,
       });
-      const text = await resp.text();
-      let json: unknown = null;
+
+      const signatureText = await signatureResp.text();
+      let signatureJson: unknown = null;
       try {
-        json = JSON.parse(text);
+        signatureJson = JSON.parse(signatureText);
       } catch {
-        throw new Error("The response is not valid JSON");
+        throw new Error("The signature response is not valid JSON");
       }
-      if (!resp.ok) {
-        const maybe = (json as { message?: unknown })?.message;
+
+      if (!signatureResp.ok) {
+        const maybe = (signatureJson as { message?: unknown })?.message;
         const message =
-          typeof maybe === "string" ? maybe : `HTTP ${resp.status}`;
+          typeof maybe === "string" ? maybe : `HTTP ${signatureResp.status}`;
         throw new Error(message);
       }
-      const code = (json as { code?: unknown })?.code;
-      if (typeof code !== "number") throw new Error("Invalid response format");
-      if (code !== 0) {
-        const maybe = (json as { message?: unknown })?.message;
-        const message = typeof maybe === "string" ? maybe : "Interface Error";
+
+      const signatureCode = (signatureJson as { code?: unknown })?.code;
+      if (typeof signatureCode !== "number") throw new Error("Invalid signature response format");
+      if (signatureCode !== 0) {
+        const maybe = (signatureJson as { message?: unknown })?.message;
+        const message = typeof maybe === "string" ? maybe : "Signature Interface Error";
         throw new Error(message);
       }
-      const data = (json as { data?: unknown })?.data as unknown;
-      let raw: string | null = null;
-      if (typeof data === "string") {
-        raw = data;
-      } else if (data && typeof data === "object") {
-        const obj = data as Record<string, unknown>;
-        const maybeUrl = (obj as { url?: unknown }).url;
-        if (typeof maybeUrl === "string") raw = maybeUrl;
+
+      const signatureData = (signatureJson as { data?: unknown })?.data;
+      if (typeof signatureData !== "string") throw new Error("Invalid signature data format");
+
+      // 解析OSS签名数据
+      const ossConfig = JSON.parse(signatureData) as {
+        ossAccessKeyId: string;
+        host: string;
+        signature: string;
+        policy: string;
+        dir: string;
+      };
+
+      // 第二步：生成唯一的name和key
+      const filename = file.name;
+      const fileExtension = filename.split('.').pop() || 'jpg';
+      const uniqueId = uuidv4(); // 生成UUID确保全局唯一
+
+      // 使用UUID生成唯一的name（避免重名覆盖）
+      const uniqueName = `pet-avatar-${uniqueId}.${fileExtension}`;
+      const key = ossConfig.dir === '/' ? `/${uniqueName}` : `${ossConfig.dir}${uniqueName}`;
+      
+      
+      const formData = new FormData();
+      
+      // 按照阿里云文档的顺序添加表单字段
+      formData.append('name', uniqueName);
+      formData.append('key', key);
+      formData.append('policy', ossConfig.policy);
+      formData.append('OSSAccessKeyId', ossConfig.ossAccessKeyId);
+      formData.append('success_action_status', '200');
+      formData.append('signature', ossConfig.signature);
+      // file必须为最后一个表单域
+      formData.append('file', file);
+
+      // 第三步：上传到OSS（确保使用HTTPS）
+      const secureHost = ossConfig.host.replace(/^http:/, 'https:');
+      
+      const uploadResp = await fetch(secureHost, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResp.ok) {
+        throw new Error(`OSS upload failed: HTTP ${uploadResp.status}`);
       }
-      if (!raw) throw new Error("Upload succeeded but no URL returned");
-      const full = /^https?:/i.test(raw)
-        ? raw
-        : `${API_BASE}/static/${String(raw).replace(/^\/+/, "")}`;
-      setAvatarUrl(full);
+
+      // 第四步：构建图片URL
+      const imageUrl = `${secureHost}/${key}`;
+      
+      
+      setAvatarUrl(imageUrl);
+
     } catch (e) {
       let message = "Upload failed";
       if (e instanceof Error) message = e.message;
@@ -1049,55 +1092,98 @@ function MyPetsModule(props: {
     }
   }
 
+  // 编辑头像上传函数 - 使用OSS表单上传 (MyPetsModule-Edit)
   async function uploadEditAvatar(file: File) {
     try {
       setEditAvatarLoading(true);
       setEditError(null);
       const token = await sessionToken.get();
       if (!token) throw new Error("Failed to obtain sessionToken");
-      const form = new FormData();
-      form.append("image", file);
-      const resp = await fetch(`${API_BASE}/storefront/uploadPetAvatar`, {
-        method: "POST",
+
+      // 第一步：获取OSS上传签名
+      const signatureResp = await fetch(`${API_BASE}/storefront/getPostSignatureForOssUpload`, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "1111",
         },
-        body: form,
       });
-      const text = await resp.text();
-      let json: unknown = null;
+
+      const signatureText = await signatureResp.text();
+      let signatureJson: unknown = null;
       try {
-        json = JSON.parse(text);
+        signatureJson = JSON.parse(signatureText);
       } catch {
-        throw new Error("The response is not valid JSON");
+        throw new Error("The signature response is not valid JSON");
       }
-      if (!resp.ok) {
-        const maybe = (json as { message?: unknown })?.message;
+
+      if (!signatureResp.ok) {
+        const maybe = (signatureJson as { message?: unknown })?.message;
         const message =
-          typeof maybe === "string" ? maybe : `HTTP ${resp.status}`;
+          typeof maybe === "string" ? maybe : `HTTP ${signatureResp.status}`;
         throw new Error(message);
       }
-      const code = (json as { code?: unknown })?.code;
-      if (typeof code !== "number") throw new Error("Invalid response format");
-      if (code !== 0) {
-        const maybe = (json as { message?: unknown })?.message;
-        const message = typeof maybe === "string" ? maybe : "Interface Error";
+
+      const signatureCode = (signatureJson as { code?: unknown })?.code;
+      if (typeof signatureCode !== "number") throw new Error("Invalid signature response format");
+      if (signatureCode !== 0) {
+        const maybe = (signatureJson as { message?: unknown })?.message;
+        const message = typeof maybe === "string" ? maybe : "Signature Interface Error";
         throw new Error(message);
       }
-      const data = (json as { data?: unknown })?.data as unknown;
-      let raw: string | null = null;
-      if (typeof data === "string") raw = data;
-      else if (data && typeof data === "object") {
-        const obj = data as Record<string, unknown>;
-        const maybeUrl = (obj as { url?: unknown }).url;
-        if (typeof maybeUrl === "string") raw = maybeUrl;
+
+      const signatureData = (signatureJson as { data?: unknown })?.data;
+      if (typeof signatureData !== "string") throw new Error("Invalid signature data format");
+
+      // 解析OSS签名数据
+      const ossConfig = JSON.parse(signatureData) as {
+        ossAccessKeyId: string;
+        host: string;
+        signature: string;
+        policy: string;
+        dir: string;
+      };
+
+      // 第二步：生成唯一的name和key
+      const filename = file.name;
+      const fileExtension = filename.split('.').pop() || 'jpg';
+      const uniqueId = uuidv4(); // 生成UUID确保全局唯一
+
+      // 使用UUID生成唯一的name（避免重名覆盖）
+      const uniqueName = `pet-avatar-${uniqueId}.${fileExtension}`;
+      const key = ossConfig.dir === '/' ? `/${uniqueName}` : `${ossConfig.dir}${uniqueName}`;
+      
+      
+      const formData = new FormData();
+      
+      // 按照阿里云文档的顺序添加表单字段
+      formData.append('name', uniqueName);
+      formData.append('key', key);
+      formData.append('policy', ossConfig.policy);
+      formData.append('OSSAccessKeyId', ossConfig.ossAccessKeyId);
+      formData.append('success_action_status', '200');
+      formData.append('signature', ossConfig.signature);
+      // file必须为最后一个表单域
+      formData.append('file', file);
+
+      // 第三步：上传到OSS（确保使用HTTPS）
+      const secureHost = ossConfig.host.replace(/^http:/, 'https:');
+      
+      const uploadResp = await fetch(secureHost, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResp.ok) {
+        throw new Error(`OSS upload failed: HTTP ${uploadResp.status}`);
       }
-      if (!raw) throw new Error("Upload succeeded but no URL returned");
-      const full = /^https?:/i.test(raw)
-        ? raw
-        : `${API_BASE}/static/${String(raw).replace(/^\/+/, "")}`;
-      setEditAvatarUrl(full);
+
+      // 第四步：构建图片URL
+      const imageUrl = `${secureHost}/${key}`;
+      
+      
+      setEditAvatarUrl(imageUrl);
+
     } catch (e) {
       let message = "Upload failed";
       if (e instanceof Error) message = e.message;
@@ -2227,57 +2313,98 @@ function MembershipTiers(props: {
     return undefined;
   }
 
-  // 头像上传函数
+  // 头像上传函数 - 使用OSS表单上传 (MembershipTiers)
   async function uploadAvatar(file: File) {
     try {
       setAvatarUploadLoading(true);
       setAvatarUploadError(null);
       const token = await sessionToken.get();
       if (!token) throw new Error("Failed to obtain sessionToken");
-      const form = new FormData();
-      form.append("image", file);
-      const resp = await fetch(`${API_BASE}/storefront/uploadPetAvatar`, {
-        method: "POST",
+
+      // 第一步：获取OSS上传签名
+      const signatureResp = await fetch(`${API_BASE}/storefront/getPostSignatureForOssUpload`, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "1111",
         },
-        body: form,
       });
-      const text = await resp.text();
-      let json: unknown = null;
+
+      const signatureText = await signatureResp.text();
+      let signatureJson: unknown = null;
       try {
-        json = JSON.parse(text);
+        signatureJson = JSON.parse(signatureText);
       } catch {
-        throw new Error("The response is not valid JSON");
+        throw new Error("The signature response is not valid JSON");
       }
-      if (!resp.ok) {
-        const maybe = (json as { message?: unknown })?.message;
+
+      if (!signatureResp.ok) {
+        const maybe = (signatureJson as { message?: unknown })?.message;
         const message =
-          typeof maybe === "string" ? maybe : `HTTP ${resp.status}`;
+          typeof maybe === "string" ? maybe : `HTTP ${signatureResp.status}`;
         throw new Error(message);
       }
-      const code = (json as { code?: unknown })?.code;
-      if (typeof code !== "number") throw new Error("Invalid response format");
-      if (code !== 0) {
-        const maybe = (json as { message?: unknown })?.message;
-        const message = typeof maybe === "string" ? maybe : "Interface Error";
+
+      const signatureCode = (signatureJson as { code?: unknown })?.code;
+      if (typeof signatureCode !== "number") throw new Error("Invalid signature response format");
+      if (signatureCode !== 0) {
+        const maybe = (signatureJson as { message?: unknown })?.message;
+        const message = typeof maybe === "string" ? maybe : "Signature Interface Error";
         throw new Error(message);
       }
-      const data = (json as { data?: unknown })?.data as unknown;
-      let raw: string | null = null;
-      if (typeof data === "string") {
-        raw = data;
-      } else if (data && typeof data === "object") {
-        const obj = data as Record<string, unknown>;
-        const maybeUrl = (obj as { url?: unknown }).url;
-        if (typeof maybeUrl === "string") raw = maybeUrl;
+
+      const signatureData = (signatureJson as { data?: unknown })?.data;
+      if (typeof signatureData !== "string") throw new Error("Invalid signature data format");
+
+      // 解析OSS签名数据
+      const ossConfig = JSON.parse(signatureData) as {
+        ossAccessKeyId: string;
+        host: string;
+        signature: string;
+        policy: string;
+        dir: string;
+      };
+
+      // 第二步：生成唯一的name和key
+      const filename = file.name;
+      const fileExtension = filename.split('.').pop() || 'jpg';
+      const uniqueId = uuidv4(); // 生成UUID确保全局唯一
+
+      // 使用UUID生成唯一的name（避免重名覆盖）
+      const uniqueName = `pet-avatar-${uniqueId}.${fileExtension}`;
+      const key = ossConfig.dir === '/' ? `/${uniqueName}` : `${ossConfig.dir}${uniqueName}`;
+      
+      
+      const formData = new FormData();
+      
+      // 按照阿里云文档的顺序添加表单字段
+      formData.append('name', uniqueName);
+      formData.append('key', key);
+      formData.append('policy', ossConfig.policy);
+      formData.append('OSSAccessKeyId', ossConfig.ossAccessKeyId);
+      formData.append('success_action_status', '200');
+      formData.append('signature', ossConfig.signature);
+      // file必须为最后一个表单域
+      formData.append('file', file);
+
+      // 第三步：上传到OSS（确保使用HTTPS）
+      const secureHost = ossConfig.host.replace(/^http:/, 'https:');
+      
+      const uploadResp = await fetch(secureHost, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResp.ok) {
+        throw new Error(`OSS upload failed: HTTP ${uploadResp.status}`);
       }
-      if (!raw) throw new Error("Upload succeeded but no URL returned");
-      const full = /^https?:/i.test(raw)
-        ? raw
-        : `${API_BASE}/static/${String(raw).replace(/^\/+/, "")}`;
-      setAvatarUrl(full);
+
+      // 第四步：构建图片URL
+      const imageUrl = `${secureHost}/${key}`;
+      
+      
+      setAvatarUrl(imageUrl);
+
     } catch (e) {
       let message = "Upload failed";
       if (e instanceof Error) message = e.message;
