@@ -38,7 +38,7 @@ export default reactExtension("customer-account.page.render", () => (
 ));
 
 // 统一域名常量，方便后续替换
-const API_BASE = "https://mutt-trusting-kindly.ngrok-free.app";
+const API_BASE = "https://api-test-club-sg.hiccpet.com";
 
 // 基础宠物类型（根据后端返回进行宽松映射）
 type Pet = {
